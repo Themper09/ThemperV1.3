@@ -36,7 +36,7 @@ Basado en las recomendaciones de OWASP Secure Headers Project.
 Requisitos previos: Python 3.8 o superior
 
 ```bash
-git clone https://github.com/TU_USUARIO/themper.git
+git clone https://github.com/Themper09/ThemperV1.3.git
 cd themper
 pip install -r requirements.txt
 ```
