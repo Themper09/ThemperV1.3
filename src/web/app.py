@@ -5,6 +5,7 @@ import time
 from datetime import datetime
 from urllib.parse import urlparse
 
+import requests
 from flask import Flask, render_template, request, jsonify, Response, stream_with_context, send_file
 
 from src.web.scan_runner import ScanRunner
@@ -20,14 +21,27 @@ app = Flask(__name__,
 
 runner = ScanRunner()
 
-if IS_VERCEL:
+def _kv_get(key):
+    url = os.environ.get("VERCEL_KV_REST_API_URL")
+    token = os.environ.get("VERCEL_KV_REST_API_TOKEN")
+    if not url or not token:
+        return None
     try:
-        from vercel_kv import KV
-        kv = KV()
+        r = requests.get(f"{url}/get/{key}", headers={"Authorization": f"Bearer {token}"}, timeout=3)
+        return r.json().get("result")
     except Exception:
-        kv = None
-else:
-    kv = None
+        return None
+
+
+def _kv_set(key, value):
+    url = os.environ.get("VERCEL_KV_REST_API_URL")
+    token = os.environ.get("VERCEL_KV_REST_API_TOKEN")
+    if not url or not token:
+        return
+    try:
+        requests.get(f"{url}/set/{key}/{value}", headers={"Authorization": f"Bearer {token}"}, timeout=3)
+    except Exception:
+        pass
 
 
 # ── Rotas locales (con threading + SSE) ──────────────────────────
@@ -125,17 +139,16 @@ def start_scan_vercel():
     scan_id = uuid.uuid4().hex[:12]
     result = _run_sync(url, scan_id)
 
-    if kv:
-        kv.set(f"scan:{scan_id}", json.dumps(result))
+    _kv_set(f"scan:{scan_id}", json.dumps(result))
 
     return jsonify(result)
 
 
 @app.route("/api/scan/<scan_id>/status")
 def scan_status(scan_id):
-    if not kv:
+    if not IS_VERCEL:
         return jsonify({"error": "KV no disponible"}), 503
-    data = kv.get(f"scan:{scan_id}")
+    data = _kv_get(f"scan:{scan_id}")
     if not data:
         return jsonify({"error": "Scan no encontrado"}), 404
     return jsonify(json.loads(data))
@@ -143,8 +156,8 @@ def scan_status(scan_id):
 
 @app.route("/api/report/<scan_id>")
 def view_report_vercel(scan_id):
-    if kv:
-        data = kv.get(f"scan:{scan_id}")
+    if IS_VERCEL:
+        data = _kv_get(f"scan:{scan_id}")
         if data:
             result = json.loads(data)
             if result.get("status") == "done":
@@ -160,9 +173,9 @@ def view_report_vercel(scan_id):
 
 @app.route("/api/scan/<scan_id>/download")
 def download_report_vercel(scan_id):
-    if not kv:
+    if not IS_VERCEL:
         return jsonify({"error": "KV no disponible"}), 503
-    data = kv.get(f"scan:{scan_id}")
+    data = _kv_get(f"scan:{scan_id}")
     if not data:
         return jsonify({"error": "Scan no encontrado"}), 404
 
