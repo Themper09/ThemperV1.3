@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>themperV1 - Web Security Scanner</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo"><span>themper</span>V1</div>
+      <h1>Web Security Scanner</h1>
+      <p class="subtitle">Headers · CORS · CVEs · Secrets · DNS · Grids · Libraries</p>
+    </header>
+
+    <div class="input-section" id="inputSection">
+      <div class="url-input-wrapper">
+        <input type="text" id="urlInput" placeholder="https://ejemplo.com" autofocus spellcheck="false"
+               onkeydown="if(event.key==='Enter') startScan()">
+      </div>
+      <div class="options-row">
+        <label class="toggle-label">
+          <input type="checkbox" id="exportCheck" checked>
+          <span class="toggle-text">Exportar HTML + JSON</span>
+        </label>
+      </div>
+      <button class="scan-btn" id="scanBtn" onclick="startScan()">Escanear</button>
+    </div>
+
+    <div class="output-section" id="outputSection">
+      <div class="output-header">
+        <div class="status" id="scanStatus">
+          <span class="dot" id="statusDot"></span>
+          <span id="statusText">Escaneando...</span>
+        </div>
+        <div id="resultActions" class="hidden"></div>
+      </div>
+      <div class="output-box" id="outputBox"></div>
+      <div id="resultPanel" class="hidden"></div>
+    </div>
+  </div>
+
+  <script>
+    let currentScanId = null;
+    let eventSource = null;
+
+    function startScan() {
+      const url = document.getElementById('urlInput').value.trim();
+      if (!url) return;
+
+      const btn = document.getElementById('scanBtn');
+      btn.disabled = true;
+      btn.textContent = 'Escaneando...';
+
+      document.getElementById('inputSection').style.display = 'none';
+      document.getElementById('outputSection').classList.add('visible');
+      document.getElementById('outputBox').innerHTML = '';
+      document.getElementById('resultPanel').classList.add('hidden');
+      document.getElementById('resultActions').classList.add('hidden');
+      document.getElementById('statusDot').className = 'dot';
+      document.getElementById('statusText').textContent = 'Iniciando...';
+
+      const exportEnabled = document.getElementById('exportCheck').checked;
+
+      fetch('/scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: url, export: exportEnabled })
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) {
+          addLine('err', 'Error: ' + data.error);
+          resetUI();
+          return;
+        }
+        currentScanId = data.scan_id;
+        connectStream(currentScanId);
+      })
+      .catch(function(err) {
+        addLine('err', 'Error de conexión: ' + err);
+        resetUI();
+      });
+    }
+
+    function connectStream(scanId) {
+      eventSource = new EventSource('/scan/stream/' + scanId);
+
+      eventSource.onmessage = function(e) {
+        var data = JSON.parse(e.data);
+
+        if (data.type === 'line') {
+          var text = data.text;
+          if (text.startsWith('[')) return;
+          var cls = 'info';
+          if (text.includes('\u2717') || text.includes('CR\u00cdTICO') || text.includes('Error')) cls = 'err';
+          else if (text.includes('\u2713') || text.includes('OK')) cls = 'ok';
+          else if (text.includes('\u26a0')) cls = 'warn';
+          else if (text.includes('SCORE') || text.includes('RESUMEN')) cls = 'highlight';
+          addLine(cls, text);
+        }
+
+        if (data.type === 'result') {
+          showResults(data.result);
+        }
+
+        if (data.type === 'done') {
+          eventSource.close();
+          document.getElementById('statusText').textContent = 'Completado';
+          document.getElementById('statusDot').classList.add('done');
+        }
+      };
+
+      eventSource.onerror = function() {
+        eventSource.close();
+        document.getElementById('statusText').textContent = 'Error de conexi\u00f3n';
+        document.getElementById('statusDot').classList.add('done');
+        setTimeout(function() { resetUI(); }, 3000);
+      };
+    }
+
+    function stripAnsi(s) {
+      return s.replace(/\u001b\[[0-9;]*[a-zA-Z]/g, '').trim();
+    }
+
+    function addLine(cls, text) {
+      var box = document.getElementById('outputBox');
+      var cleaned = stripAnsi(text);
+      if (!cleaned) return;
+      var div = document.createElement('div');
+      div.className = 'line ' + cls;
+      div.textContent = cleaned;
+      box.appendChild(div);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function showResults(result) {
+      var panel = document.getElementById('resultPanel');
+      panel.classList.remove('hidden');
+
+      var score = result.score;
+      var risk = result.risk_level;
+      var vulns = result.vulns || [];
+      var duration = result.duration || 0;
+
+      var barClass = 'bad';
+      var riskText = 'ALTO';
+      if (score >= 70) { barClass = 'good'; riskText = 'BAJO'; }
+      else if (score >= 50) { barClass = 'medium'; riskText = 'MEDIO'; }
+
+      var html = '<div class="score-bar-wrap">';
+      html += '<div class="score-bar-label">';
+      html += '<span>Score: <strong>' + score + '/100</strong></span>';
+      html += '<span>Riesgo: <strong>' + riskText + '</strong></span>';
+      html += '</div>';
+      html += '<div class="score-bar"><div class="score-bar-fill ' + barClass + '" style="width:' + score + '%"></div></div>';
+      html += '</div>';
+
+      html += '<div class="vuln-list">';
+      html += '<h3>Vulnerabilidades (' + vulns.length + ')</h3>';
+      if (vulns.length > 0) {
+        html += '<ul>';
+        vulns.forEach(function(v) { html += '<li>' + v + '</li>'; });
+        html += '</ul>';
+      } else {
+        html += '<p style="color:#a6e3a1;font-size:13px">&#10003; Sin vulnerabilidades detectadas</p>';
+      }
+      html += '</div>';
+
+      html += '<a class="download-btn" href="/scan/' + currentScanId + '/download">Descargar JSON</a>';
+      html += '<a class="download-btn" style="margin-left:8px" href="/report/' + currentScanId + '" target="_blank">Ver HTML</a>';
+      html += '<button class="download-btn" style="margin-left:8px" onclick="resetUI()">Nuevo Scan</button>';
+
+      if (vulns.length > 0) {
+        html += '<div class="report-iframe-wrap"><iframe class="report-iframe" src="/report/' + currentScanId + '"></iframe></div>';
+      }
+
+      panel.innerHTML = html;
+
+      var actions = document.getElementById('resultActions');
+      actions.classList.remove('hidden');
+    }
+
+    function resetUI() {
+      if (eventSource) { eventSource.close(); eventSource = null; }
+      document.getElementById('inputSection').style.display = 'flex';
+      document.getElementById('outputSection').classList.remove('visible');
+      document.getElementById('outputBox').innerHTML = '';
+      document.getElementById('resultPanel').classList.add('hidden');
+      document.getElementById('resultActions').classList.add('hidden');
+      var btn = document.getElementById('scanBtn');
+      btn.disabled = false;
+      btn.textContent = 'Escanear';
+      currentScanId = null;
+    }
+  </script>
+</body>
+</html>

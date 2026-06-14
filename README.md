@@ -4,6 +4,10 @@ ThemperV1 is a modular web security scanning tool developed by SauNuz Team. It a
 
 ---
 
+# app.runner
+
+--  python3 -m src.web.app
+
 ## Features
 
 | Module                | Description                                                      |

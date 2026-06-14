@@ -65,7 +65,7 @@ class ThemperV1:
 ╚══════════════════════════════════╝{W}
         """)
 
-    def run(self, url=None):
+    def run(self, url=None, export='ask'):
         self.banner()
 
         if not url:
@@ -83,6 +83,8 @@ class ThemperV1:
             return 1
 
         root_domain = ".".join(domain.split('.')[-2:]) if domain.count('.') > 1 else domain
+
+        session = requests.Session()
 
         box(f"Target: {domain}", P)
 
@@ -103,15 +105,15 @@ class ThemperV1:
 
         # 3. DNS
         box(f"DNS Avanzado - {root_domain}")
-        get_dns_doh(root_domain, "NS")
-        get_dns_doh(root_domain, "TXT")
-        get_dns_doh(root_domain, "MX")
+        get_dns_doh(session, root_domain, "NS")
+        get_dns_doh(session, root_domain, "TXT")
+        get_dns_doh(session, root_domain, "MX")
 
         # 4. Headers + HTML
         box("Fingerprinting + WAF")
         try:
             start_req = time.time()
-            r = requests.get(url, allow_redirects=True, timeout=10)
+            r = session.get(url, allow_redirects=True, timeout=10)
             req_time = round((time.time() - start_req) * 1000, 2)
             headers = r.headers
             html = r.text
@@ -148,37 +150,37 @@ class ThemperV1:
             item("Stack oculto o personalizado", "info")
 
         # 6. robots.txt
-        check_robots_sitemap(url, self)
+        check_robots_sitemap(session, url, self)
 
         # 7. Puertos
         scan_ports(ip)
 
         # 8. CORS
-        check_cors(url, self)
+        check_cors(session, url, self)
 
         # 9. Vulns
-        check_security_headers(headers, html, url, self)
+        check_security_headers(headers, html, url, self, session)
 
         # 10. CVEs
         check_cves(frameworks, self)
 
         # 11. Secrets
-        scan_js_secrets(html, url, self)
+        scan_js_secrets(html, url, self, session)
 
         # 12. Sourcemaps
-        check_sourcemaps(html, url, self)
+        check_sourcemaps(html, url, self, session)
 
         # 13. Rate Limit
-        test_rate_limit(url, self)
+        test_rate_limit(session, url, self)
 
         # 14. Archivos expuestos
-        check_exposed_files(url, self)
+        check_exposed_files(session, url, self)
 
         # 15. Grids expuestos
-        check_grid_expuesto(url, self)
+        check_grid_expuesto(session, url, self)
 
         # 16. Librerías vulnerables
-        check_librerias_vulnerables(html, url, self)
+        check_librerias_vulnerables(html, url, self, session)
 
         # Score Final
         box("SCORE FINAL", P)
@@ -197,7 +199,10 @@ class ThemperV1:
 
         # Export
         box("Exportar Reportes", C)
-        resp = input(f"{'':>28}{C}¿Exportar HTML y JSON?{W} (s/N): ").strip().lower()
+        if export == 'ask':
+            resp = input(f"{'':>28}{C}¿Exportar HTML y JSON?{W} (s/N): ").strip().lower()
+        else:
+            resp = 's' if export == 'yes' else 'n'
         if resp == 's':
             export_json(domain, self.score, self.vulns, self.start_time)
             generar_html(domain, self.score, self.vulns)

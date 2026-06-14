@@ -3,7 +3,7 @@ import requests
 from src.core.colors import item, R, C, W, box
 
 
-def scan_js_secrets(html, url, scanner):
+def scan_js_secrets(html, url, scanner, session=None):
     box("Secrets en Frontend", R)
     js_urls = re.findall(r'<script.*?src="([^"]+\.js)"', html)
     patterns = {
@@ -14,12 +14,13 @@ def scan_js_secrets(html, url, scanner):
         'Slack Token': r'xox[baprs]-[0-9a-zA-Z]{10,48}',
         'Generic Secret': r'["\']?[a-zA-Z0-9_]*secret[a-zA-Z0-9_]*["\']?\s*[:=]\s*["\'][a-zA-Z0-9]{16,}["\']'
     }
+    http = session or requests
 
     found = 0
-    for js_url in js_urls[:5]:
+    for js_url in js_urls[:3]:
         try:
             full_url = js_url if js_url.startswith('http') else url.rstrip('/') + '/' + js_url.lstrip('/')
-            js = requests.get(full_url, timeout=5).text
+            js = http.get(full_url, timeout=3).text
             for name, pattern in patterns.items():
                 matches = re.findall(pattern, js)
                 if matches:

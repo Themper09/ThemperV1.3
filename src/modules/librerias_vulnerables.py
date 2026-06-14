@@ -56,23 +56,25 @@ VULN_LIBS = [
 ]
 
 
-def check_librerias_vulnerables(html, url, scanner):
+def check_librerias_vulnerables(html, url, scanner, session=None):
     box("Librerías JavaScript Vulnerables", R)
-
+    http = session or requests
     found = 0
+    fetched_html = None
+
     for lib_name, pattern, vulns in VULN_LIBS:
         version = parse_version(html, pattern)
         if not version:
-            try:
-                r = requests.get(url, timeout=5)
-                version = parse_version(r.text, pattern)
-            except Exception:
-                continue
+            if fetched_html is None:
+                try:
+                    fetched_html = http.get(url, timeout=3).text
+                except Exception:
+                    continue
+            version = parse_version(fetched_html, pattern)
 
         if version:
             item(f"{C}{lib_name}{W} v{version} detectada", "info")
             for constraint, desc in vulns:
-                op = "<" if "<" in constraint else "<="
                 threshold = constraint.replace("<=", "").replace("<", "")
                 if version_tuple(version) < version_tuple(threshold):
                     item(f"  {R}VULNERABLE:{W} {desc}", "err")

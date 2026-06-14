@@ -2,7 +2,7 @@ import requests
 from src.core.colors import item, Y, W, C, BOLD, box
 
 
-def check_cors(url, scanner):
+def check_cors(session, url, scanner):
     box("CORS Killer - Multi-Origin Probe", Y)
 
     origins = [
@@ -10,28 +10,17 @@ def check_cors(url, scanner):
         ("evil.com", "https://evil.com"),
         ("sub.evil.com", "https://sub.evil.com"),
         ("evil-domain", "https://evil-domain"),
-        ("trusted.evil.com", None),
         ("evil.com:443", "https://evil.com:443"),
         ("evil.com@", "https://evil.com@"),
-        ("evil[.]com", "https://evil[.]com"),
-        ("evil.com.evictrust.com", None),
         ("evil.com%2f", "https://evil.com%2f"),
-        ("evil.com\\", "https://evil.com\\"),
-        ("evil.com.evictrust.com", None),
         ("data:", "data:"),
-        ("file:", "file:///etc/passwd"),
-        ("no-origin", None),
     ]
 
     found = False
     for label, origin in origins:
-        if origin is None:
-            continue
         try:
             hdrs = {"Origin": origin}
-            if label == "no-origin":
-                hdrs = {}
-            r = requests.get(url, headers=hdrs, timeout=5)
+            r = session.get(url, headers=hdrs, timeout=3)
             acao = r.headers.get("Access-Control-Allow-Origin", "")
             acac = r.headers.get("Access-Control-Allow-Credentials", "")
 
@@ -57,7 +46,7 @@ def check_cors(url, scanner):
             "Origin": "https://evil.com",
             "Access-Control-Request-Method": "PUT",
         }
-        r = requests.options(url, headers=hdrs, timeout=5)
+        r = session.options(url, headers=hdrs, timeout=3)
         acao = r.headers.get("Access-Control-Allow-Origin", "")
         acam = r.headers.get("Access-Control-Allow-Methods", "")
         if acao and acam:

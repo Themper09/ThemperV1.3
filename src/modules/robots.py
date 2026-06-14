@@ -3,11 +3,11 @@ import requests
 from src.core.colors import item, G, Y, DIM, W, box
 
 
-def check_robots_sitemap(url, scanner):
+def check_robots_sitemap(session, url, scanner):
     box("robots.txt & sitemap.xml")
     for file in ['robots.txt', 'sitemap.xml']:
         try:
-            r = requests.get(f"{url}/{file}", timeout=3)
+            r = session.get(f"{url}/{file}", timeout=2)
             if r.status_code == 200 and not scanner.is_catchall(r.text):
                 lines = len(r.text.split('\n'))
                 item(f"{file}: {G}Encontrado{W} - {lines} líneas", "ok")

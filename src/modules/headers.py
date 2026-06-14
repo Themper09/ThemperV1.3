@@ -2,7 +2,7 @@ import requests
 from src.core.colors import item, C, G, R, Y, BOLD, DIM, W, box
 
 
-def check_security_headers(headers, html, url, scanner):
+def check_security_headers(headers, html, url, scanner, session=None):
     box("ANÁLISIS DE VULNERABILIDADES", R)
 
     print(f"\n{C}{BOLD}TODOS LOS HEADERS HTTP{W}")
@@ -51,9 +51,10 @@ def check_security_headers(headers, html, url, scanner):
         scanner.deduct_score(3, "Fuga de info X-Powered-By")
 
     print(f"\n{C}{BOLD}Test XSS Básico{W}")
+    http = session or requests
     try:
         payload = "<script>alert('themper')</script>"
-        r = requests.get(f"{url}?themper={payload}", timeout=5)
+        r = http.get(f"{url}?themper={payload}", timeout=3)
         if payload in r.text:
             item("XSS Reflejado DETECTADO - CRÍTICO", "err")
             scanner.deduct_score(25, "XSS Reflejado")

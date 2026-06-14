@@ -17,8 +17,8 @@ venv.bak/
 
 # Themper - Reportes generados
 reports/
-*.html
-*.json
+themper_*.html
+themper_*.json
 *.txt
 *.csv
 

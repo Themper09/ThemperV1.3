@@ -2,7 +2,7 @@ import requests
 from src.core.colors import item, Y, R, DIM, W, box
 
 
-def check_exposed_files(url, scanner):
+def check_exposed_files(session, url, scanner):
     box("Archivos Sensibles Expuestos", R)
     sensitive = ['.env', '.git/config', '.DS_Store', 'wp-config.php',
                  'config.json', 'backup.zip', 'database.sql', '.htaccess',
@@ -11,7 +11,7 @@ def check_exposed_files(url, scanner):
 
     for file in sensitive:
         try:
-            r = requests.get(f"{url}/{file}", timeout=3, allow_redirects=False)
+            r = session.get(f"{url}/{file}", timeout=2, allow_redirects=False)
             if r.status_code == 200 and len(r.text) > 20:
                 if scanner.is_catchall(r.text):
                     item(f"{file}: {Y}Catch-all detectado{W}", "warn")

@@ -3,11 +3,11 @@ import requests
 from src.core.colors import item, C, W
 
 
-def get_dns_doh(domain, record_type):
+def get_dns_doh(session, domain, record_type):
     try:
         url = f"https://cloudflare-dns.com/dns-query?name={domain}&type={record_type}"
         headers = {"accept": "application/dns-json"}
-        r = requests.get(url, headers=headers, timeout=5)
+        r = session.get(url, headers=headers, timeout=4)
         data = r.json()
         item(f"DNS DoH Raw {record_type}: {C}{json.dumps(data)[:80]}...{W}", "info")
         if "Answer" in data:
