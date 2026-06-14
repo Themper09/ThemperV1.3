@@ -17,6 +17,8 @@ from src.modules.js_secrets import scan_js_secrets
 from src.modules.sourcemaps import check_sourcemaps
 from src.modules.robots import check_robots_sitemap
 from src.modules.ports import scan_ports
+from src.modules.grid_expuesto import check_grid_expuesto
+from src.modules.librerias_vulnerables import check_librerias_vulnerables
 from src.controllers.report import export_json, generar_html
 
 
@@ -171,6 +173,12 @@ class ThemperV1:
 
         # 14. Archivos expuestos
         check_exposed_files(url, self)
+
+        # 15. Grids expuestos
+        check_grid_expuesto(url, self)
+
+        # 16. Librerías vulnerables
+        check_librerias_vulnerables(html, url, self)
 
         # Score Final
         box("SCORE FINAL", P)
