@@ -13,9 +13,8 @@ from src.core.scanner import ThemperV1
 
 IS_VERCEL = os.environ.get("VERCEL") == "1"
 
-_root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 app = Flask(__name__,
-    static_folder=os.path.join(_root_dir, 'public', 'static'),
+    static_folder=os.path.join(os.path.dirname(__file__), 'static'),
     template_folder='templates'
 )
 
