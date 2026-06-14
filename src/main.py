@@ -6,7 +6,7 @@ from src.core.scanner import ThemperV1
 
 def main():
     if len(sys.argv) != 2:
-        print(f"{R}Uso: python themper.py https://ejemplo.com{W}")
+        print(f"{R}Uso: python -m src.main https://ejemplo.com{W}")
         sys.exit(1)
 
     themper = ThemperV1()
