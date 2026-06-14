@@ -3,7 +3,7 @@ import os
 import uuid
 import time
 from datetime import datetime
-from urllib.parse import urlparse
+from urllib.parse import urlparse, quote
 
 import requests
 from flask import Flask, render_template, request, jsonify, Response, stream_with_context, send_file
@@ -38,7 +38,8 @@ def _kv_set(key, value):
     if not url or not token:
         return
     try:
-        requests.get(f"{url}/set/{key}/{value}", headers={"Authorization": f"Bearer {token}"}, timeout=3)
+        safe_value = quote(value, safe='')
+        requests.get(f"{url}/set/{key}/{safe_value}", headers={"Authorization": f"Bearer {token}"}, timeout=3)
     except Exception:
         pass
 
@@ -194,6 +195,7 @@ def download_report_vercel(scan_id):
 def _run_sync(url, scan_id):
     try:
         scanner = ThemperV1()
+        scanner.is_vercel = True
         exit_code = scanner.run(url, export='no')
         parsed = urlparse(url)
         domain = parsed.netloc

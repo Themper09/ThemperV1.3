@@ -99,15 +99,20 @@ class ThemperV1:
             return 1
 
         # 2. SSL
-        ssl_ok = check_ssl(domain)
-        if not ssl_ok:
-            self.deduct_score(5, "SSL handshake lento")
+        try:
+            ssl_ok = check_ssl(domain)
+            if not ssl_ok:
+                self.deduct_score(5, "SSL handshake lento")
+        except Exception:
+            item("Error en módulo SSL", "err")
 
         # 3. DNS
         box(f"DNS Avanzado - {root_domain}")
-        get_dns_doh(session, root_domain, "NS")
-        get_dns_doh(session, root_domain, "TXT")
-        get_dns_doh(session, root_domain, "MX")
+        for rt in ("NS", "TXT", "MX"):
+            try:
+                get_dns_doh(session, root_domain, rt)
+            except Exception:
+                pass
 
         # 4. Headers + HTML
         box("Fingerprinting + WAF")
@@ -149,38 +154,25 @@ class ThemperV1:
         if not frameworks:
             item("Stack oculto o personalizado", "info")
 
-        # 6. robots.txt
-        check_robots_sitemap(session, url, self)
-
-        # 7. Puertos
-        scan_ports(ip)
-
-        # 8. CORS
-        check_cors(session, url, self)
-
-        # 9. Vulns
-        check_security_headers(headers, html, url, self, session)
-
-        # 10. CVEs
-        check_cves(frameworks, self)
-
-        # 11. Secrets
-        scan_js_secrets(html, url, self, session)
-
-        # 12. Sourcemaps
-        check_sourcemaps(html, url, self, session)
-
-        # 13. Rate Limit
-        test_rate_limit(session, url, self)
-
-        # 14. Archivos expuestos
-        check_exposed_files(session, url, self)
-
-        # 15. Grids expuestos
-        check_grid_expuesto(session, url, self)
-
-        # 16. Librerías vulnerables
-        check_librerias_vulnerables(html, url, self, session)
+        # 6-16. Módulos de análisis
+        mods = [
+            ("robots.txt", lambda: check_robots_sitemap(session, url, self)),
+            ("Puertos", lambda: scan_ports(ip)),
+            ("CORS", lambda: check_cors(session, url, self)),
+            ("Headers", lambda: check_security_headers(headers, html, url, self, session)),
+            ("CVEs", lambda: check_cves(frameworks, self)),
+            ("Secrets JS", lambda: scan_js_secrets(html, url, self, session)),
+            ("Sourcemaps", lambda: check_sourcemaps(html, url, self, session)),
+            ("Rate Limit", lambda: test_rate_limit(session, url, self)),
+            ("Archivos expuestos", lambda: check_exposed_files(session, url, self)),
+            ("Grids expuestos", lambda: check_grid_expuesto(session, url, self)),
+            ("Librerías vulnerables", lambda: check_librerias_vulnerables(html, url, self, session)),
+        ]
+        for name, fn in mods:
+            try:
+                fn()
+            except Exception as e:
+                item(f"Error en {name}: {e}", "err")
 
         # Score Final
         box("SCORE FINAL", P)
