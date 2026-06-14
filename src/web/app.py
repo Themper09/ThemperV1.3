@@ -17,7 +17,7 @@ app = Flask(__name__,
     static_folder=os.path.join(os.path.dirname(__file__), 'static'),
     template_folder='templates'
 )
-
+#el pepe
 runner = ScanRunner()
 
 def _kv_get(key):
