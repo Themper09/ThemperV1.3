@@ -5,12 +5,9 @@ from src.core.scanner import ThemperV1
 
 
 def main():
-    if len(sys.argv) != 2:
-        print(f"{R}Uso: python themper.py https://ejemplo.com{W}")
-        sys.exit(1)
-
     themper = ThemperV1()
-    exit_code = themper.run(sys.argv[1])
+    url = sys.argv[1] if len(sys.argv) > 1 else None
+    exit_code = themper.run(url)
     sys.exit(exit_code)
 
 

@@ -63,8 +63,16 @@ class ThemperV1:
 ╚══════════════════════════════════╝{W}
         """)
 
-    def run(self, url):
+    def run(self, url=None):
         self.banner()
+
+        if not url:
+            print(f"{'':>30}{BOLD}Ingresa la URL a escanear{W}")
+            print(f"{'':>26}{'─'*40}")
+            url = input(f"{'':>32}{C}URL:{W} ").strip()
+            if not url:
+                item("No ingresaste ninguna URL", "err")
+                return 1
 
         parsed = urlparse(url)
         domain = parsed.netloc
@@ -181,8 +189,12 @@ class ThemperV1:
 
         # Export
         box("Exportar Reportes", C)
-        export_json(domain, self.score, self.vulns, self.start_time)
-        generar_html(domain, self.score, self.vulns)
+        resp = input(f"{'':>28}{C}¿Exportar HTML y JSON?{W} (s/N): ").strip().lower()
+        if resp == 's':
+            export_json(domain, self.score, self.vulns, self.start_time)
+            generar_html(domain, self.score, self.vulns)
+        else:
+            item("Exportación omitida", "warn")
 
         # Resumen final
         print(f"\n{B}{BOLD}{'═'*68}")
