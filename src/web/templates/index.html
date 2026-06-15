@@ -42,14 +42,18 @@
   </div>
 
   <script>
-    let currentScanId = null;
-    let eventSource = null;
+    var IS_VERCEL = {% if is_vercel %}true{% else %}false{% endif %};
+    var currentScanId = null;
+    var eventSource = null;
+    var pollTimer = null;
+    var scanCompleted = false;
+    var displayedLineCount = 0;
 
     function startScan() {
-      const url = document.getElementById('urlInput').value.trim();
+      var url = document.getElementById('urlInput').value.trim();
       if (!url) return;
 
-      const btn = document.getElementById('scanBtn');
+      var btn = document.getElementById('scanBtn');
       btn.disabled = true;
       btn.textContent = 'Escaneando...';
 
@@ -60,16 +64,25 @@
       document.getElementById('resultActions').classList.add('hidden');
       document.getElementById('statusDot').className = 'dot';
       document.getElementById('statusText').textContent = 'Iniciando...';
+      displayedLineCount = 0;
+      scanCompleted = false;
 
-      const exportEnabled = document.getElementById('exportCheck').checked;
+      if (IS_VERCEL) {
+        startVercelScan(url);
+      } else {
+        startLocalScan(url);
+      }
+    }
 
+    function startLocalScan(url) {
+      var exportEnabled = document.getElementById('exportCheck').checked;
       fetch('/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: url, export: exportEnabled })
       })
-      .then(r => r.json())
-      .then(data => {
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
         if (data.error) {
           addLine('err', 'Error: ' + data.error);
           resetUI();
@@ -79,9 +92,62 @@
         connectStream(currentScanId);
       })
       .catch(function(err) {
-        addLine('err', 'Error de conexión: ' + err);
+        addLine('err', 'Error de conexi\u00f3n: ' + err);
         resetUI();
       });
+    }
+
+    function startVercelScan(url) {
+      var scanId = Math.random().toString(36).substr(2, 12) + Date.now().toString(36);
+      currentScanId = scanId;
+      document.getElementById('statusText').textContent = 'Escaneando...';
+
+      pollTimer = setInterval(function() { pollProgress(scanId); }, 1500);
+      pollProgress(scanId);
+
+      fetch('/api/scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: url, scan_id: scanId })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.error) {
+          addLine('err', 'Error: ' + data.error);
+        } else {
+          showResults(data);
+        }
+        scanCompleted = true;
+        clearInterval(pollTimer);
+        document.getElementById('statusText').textContent = 'Completado';
+        document.getElementById('statusDot').classList.add('done');
+      })
+      .catch(function(err) {
+        addLine('err', 'Error de conexi\u00f3n: ' + err);
+        scanCompleted = true;
+        clearInterval(pollTimer);
+        setTimeout(function() { resetUI(); }, 3000);
+      });
+    }
+
+    function pollProgress(scanId) {
+      fetch('/api/scan/' + scanId + '/progress')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.lines && data.lines.length > 0) {
+          for (var i = displayedLineCount; i < data.lines.length; i++) {
+            var text = data.lines[i];
+            var cls = 'info';
+            if (text.indexOf('\u2717') !== -1 || text.indexOf('CR\u00cdTICO') !== -1 || text.indexOf('Error') !== -1) cls = 'err';
+            else if (text.indexOf('\u2713') !== -1 || text.indexOf('OK') !== -1) cls = 'ok';
+            else if (text.indexOf('\u26a0') !== -1) cls = 'warn';
+            else if (text.indexOf('SCORE') !== -1 || text.indexOf('RESUMEN') !== -1) cls = 'highlight';
+            addLine(cls, text);
+          }
+          displayedLineCount = data.lines.length;
+        }
+      })
+      .catch(function() {});
     }
 
     function connectStream(scanId) {
@@ -92,12 +158,12 @@
 
         if (data.type === 'line') {
           var text = data.text;
-          if (text.startsWith('[')) return;
+          if (text.charAt(0) === '[') return;
           var cls = 'info';
-          if (text.includes('\u2717') || text.includes('CR\u00cdTICO') || text.includes('Error')) cls = 'err';
-          else if (text.includes('\u2713') || text.includes('OK')) cls = 'ok';
-          else if (text.includes('\u26a0')) cls = 'warn';
-          else if (text.includes('SCORE') || text.includes('RESUMEN')) cls = 'highlight';
+          if (text.indexOf('\u2717') !== -1 || text.indexOf('CR\u00cdTICO') !== -1 || text.indexOf('Error') !== -1) cls = 'err';
+          else if (text.indexOf('\u2713') !== -1 || text.indexOf('OK') !== -1) cls = 'ok';
+          else if (text.indexOf('\u26a0') !== -1) cls = 'warn';
+          else if (text.indexOf('SCORE') !== -1 || text.indexOf('RESUMEN') !== -1) cls = 'highlight';
           addLine(cls, text);
         }
 
@@ -168,22 +234,24 @@
       }
       html += '</div>';
 
-      html += '<a class="download-btn" href="/scan/' + currentScanId + '/download">Descargar JSON</a>';
-      html += '<a class="download-btn" style="margin-left:8px" href="/report/' + currentScanId + '" target="_blank">Ver HTML</a>';
-      html += '<button class="download-btn" style="margin-left:8px" onclick="resetUI()">Nuevo Scan</button>';
-
-      if (vulns.length > 0) {
-        html += '<div class="report-iframe-wrap"><iframe class="report-iframe" src="/report/' + currentScanId + '"></iframe></div>';
+      if (IS_VERCEL) {
+        html += '<a class="download-btn" href="/api/scan/' + currentScanId + '/download">Descargar JSON</a>';
+        html += '<a class="download-btn" style="margin-left:8px" href="/api/report/' + currentScanId + '" target="_blank">Ver HTML</a>';
+      } else {
+        html += '<a class="download-btn" href="/scan/' + currentScanId + '/download">Descargar JSON</a>';
+        html += '<a class="download-btn" style="margin-left:8px" href="/report/' + currentScanId + '" target="_blank">Ver HTML</a>';
       }
+      html += '<button class="download-btn" style="margin-left:8px" onclick="resetUI()">Nuevo Scan</button>';
 
       panel.innerHTML = html;
 
-      var actions = document.getElementById('resultActions');
-      actions.classList.remove('hidden');
+      document.getElementById('resultActions').classList.remove('hidden');
     }
 
     function resetUI() {
       if (eventSource) { eventSource.close(); eventSource = null; }
+      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+      scanCompleted = true;
       document.getElementById('inputSection').style.display = 'flex';
       document.getElementById('outputSection').classList.remove('visible');
       document.getElementById('outputBox').innerHTML = '';
@@ -193,6 +261,7 @@
       btn.disabled = false;
       btn.textContent = 'Escanear';
       currentScanId = null;
+      displayedLineCount = 0;
     }
   </script>
 </body>
