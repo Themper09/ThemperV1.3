@@ -77,22 +77,27 @@ class _VercelCapture:
         self.scan_id = scan_id
         self.original = original
         self.buffer = []
+        self.line_count = 0
 
     def write(self, text):
         self.original.write(text)
-        if text.strip():
-            self.buffer.append(_strip_ansi(text))
+        stripped = _strip_ansi(text)
+        if stripped:
+            self.buffer.append(stripped)
+            self.line_count += 1
+        # flush cada 3 líneas para mostrar progreso en vivo
+        if self.line_count >= 3 and '\n' in text:
+            self._flush_buffer()
 
     def flush(self):
         self.original.flush()
-        if len(self.buffer) >= 5:
-            self._flush_buffer()
 
     def _flush_buffer(self):
         if not self.buffer:
             return
         batch = self.buffer.copy()
         self.buffer.clear()
+        self.line_count = 0
         _append_kv_lines(self.scan_id, batch)
 
     def force_flush(self):

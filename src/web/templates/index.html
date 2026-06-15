@@ -234,18 +234,71 @@
       }
       html += '</div>';
 
-      if (IS_VERCEL) {
-        html += '<a class="download-btn" href="/api/scan/' + currentScanId + '/download">Descargar JSON</a>';
-        html += '<a class="download-btn" style="margin-left:8px" href="/api/report/' + currentScanId + '" target="_blank">Ver HTML</a>';
-      } else {
-        html += '<a class="download-btn" href="/scan/' + currentScanId + '/download">Descargar JSON</a>';
-        html += '<a class="download-btn" style="margin-left:8px" href="/report/' + currentScanId + '" target="_blank">Ver HTML</a>';
-      }
+      var jsonUrl = makeJsonBlob(result);
+      var htmlUrl = makeHtmlBlob(result);
+      var domainClean = (result.domain || 'report').replace(/[^a-z0-9]/gi, '_');
+      html += '<a class="download-btn" href="' + jsonUrl + '" download="themper_' + domainClean + '.json">Descargar JSON</a>';
+      html += '<a class="download-btn" style="margin-left:8px" href="' + htmlUrl + '" target="_blank">Ver HTML</a>';
       html += '<button class="download-btn" style="margin-left:8px" onclick="resetUI()">Nuevo Scan</button>';
 
       panel.innerHTML = html;
 
       document.getElementById('resultActions').classList.remove('hidden');
+    }
+
+    function makeJsonBlob(result) {
+      var report = {
+        target: result.domain || '',
+        timestamp: new Date().toISOString(),
+        score: result.score || 0,
+        risk_level: result.risk_level || 'ERROR',
+        vulns: result.vulns || [],
+        scan_type: 'themperV1.3_FULL',
+        duration_seconds: result.duration || 0,
+      };
+      var blob = new Blob([JSON.stringify(report, null, 2)], {type: 'application/json'});
+      return URL.createObjectURL(blob);
+    }
+
+    function makeHtmlBlob(result) {
+      var domain = result.domain || 'unknown';
+      var score = result.score || 0;
+      var vulns = result.vulns || [];
+      var scoreClass = score > 70 ? 'ok' : score > 50 ? 'warn' : 'err';
+
+      var vulnsHtml = '';
+      if (vulns.length > 0) {
+        vulnsHtml = vulns.map(function(v) {
+          return '<li class="err">&#10007; ' + v + '</li>';
+        }).join('');
+      } else {
+        vulnsHtml = '<li class="ok">&#10003; Sin problemas detectados</li>';
+      }
+
+      var html = '<!DOCTYPE html>\n<html lang="es">\n<head>\n';
+      html += '<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width, initial-scale=1.0">\n';
+      html += '<title>themperV1 Report - ' + domain + '</title>\n';
+      html += '<style>\n';
+      html += 'body{background:#0d1117;color:#c9d1d9;font-family:monospace;padding:20px;margin:0}\n';
+      html += 'h1{color:#f85149;border-bottom:1px solid #30363d;padding-bottom:10px}\n';
+      html += 'h2{color:#58a6ff;margin-top:0}\n';
+      html += '.ok{color:#3fb950}.warn{color:#d29922}.err{color:#f85149}\n';
+      html += '.score{font-size:48px;font-weight:bold;text-align:center;padding:20px 0}\n';
+      html += '.box{border:1px solid #30363d;padding:15px;margin:10px 0;border-radius:6px;background:#161b22}\n';
+      html += 'ul{list-style:none;padding:0}li{padding:5px 0}\n';
+      html += '.footer{margin-top:30px;color:#8b949e;font-size:12px;text-align:center;border-top:1px solid #30363d;padding-top:15px}\n';
+      html += '</style>\n</head>\n<body>\n';
+      html += '<h1>themperV1 v1.3 Security Report</h1>\n';
+      html += '<div class="box">\n<h2>Target: ' + domain + '</h2>\n';
+      html += '<p>Fecha: ' + new Date().toLocaleString() + '</p>\n';
+      html += '<p class="score ' + scoreClass + '">Score: ' + Math.max(0, score) + '/100</p>\n</div>\n';
+      html += '<div class="box">\n<h2>Vulnerabilidades Detectadas: ' + vulns.length + '</h2>\n';
+      html += '<ul>' + vulnsHtml + '</ul>\n</div>\n';
+      html += '<div class="footer">Generado por themperV1.3 FULL - SauNuz Team</div>\n';
+      html += '</body>\n</html>';
+
+      var blob = new Blob([html], {type: 'text/html'});
+      return URL.createObjectURL(blob);
     }
 
     function resetUI() {
