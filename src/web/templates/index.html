@@ -8,6 +8,28 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+
+  <!-- Top bar -->
+  <div class="top-bar">
+    <button class="hamburger" id="hamburgerBtn" onclick="toggleNav()">☰</button>
+  </div>
+
+  <!-- Nav menu -->
+  <div class="nav-overlay" id="navOverlay" onclick="closeNav()"></div>
+  <div class="nav-menu" id="navMenu">
+    <button class="nav-close" onclick="closeNav()">✕</button>
+    <div class="nav-item" onclick="openModal('soporte')">🛠 Soporte técnico</div>
+    <div class="nav-item" onclick="openModal('info')">ℹ Info</div>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal-overlay" id="modalOverlay" onclick="closeModal()">
+    <div class="modal" id="modal">
+      <button class="modal-close" onclick="closeModal()">✕</button>
+      <div id="modalContent"></div>
+    </div>
+  </div>
+
   <div class="container">
     <header>
       <img id="logoImg" class="logo-img" src="{{ url_for('static', filename='images/image.png') }}" alt="themperV1">
@@ -304,6 +326,44 @@
 
       var blob = new Blob([html], {type: 'text/html'});
       return URL.createObjectURL(blob);
+    }
+
+    function toggleNav() {
+      var menu = document.getElementById('navMenu');
+      var overlay = document.getElementById('navOverlay');
+      menu.classList.toggle('open');
+      overlay.classList.toggle('open');
+    }
+
+    function closeNav() {
+      document.getElementById('navMenu').classList.remove('open');
+      document.getElementById('navOverlay').classList.remove('open');
+    }
+
+    function openModal(type) {
+      closeNav();
+      var content = document.getElementById('modalContent');
+      if (type === 'soporte') {
+        content.innerHTML = '<h2>🛠 Soporte técnico</h2>' +
+          '<p>Si tienes problemas con themperV1 o deseas reportar un bug, puedes contactarnos a través de los siguientes canales:</p>' +
+          '<p>📧 Email: <a href="mailto:support@thempersecurity.com">support@thempersecurity.com</a></p>' +
+          '<p>🐛 Reporta bugs en nuestro repositorio oficial.</p>' +
+          '<p>⏱ Horario de atención: Lun–Vie, 9:00–18:00</p>';
+      } else {
+        content.innerHTML = '<h2>ℹ Información</h2>' +
+          '<p><strong>themperV1 v1.3 FULL</strong></p>' +
+          '<p>Escáner de seguridad web desarrollado por <strong>SauNuz Team</strong>.</p>' +
+          '<p>Realiza auditorías de:<br>' +
+          '· Headers de seguridad · CORS · CVEs · Secretos en JS<br>' +
+          '· DNS · Sourcemaps · Rate limit · Archivos expuestos<br>' +
+          '· Puertos · Grids · Librerías vulnerables</p>' +
+          '<p>🔒 Tus datos no se almacenan ni comparten. Ten en cuenta que esta es solo una versión de demostracion del, si quieres ver los procesos debes instalar nuestro software.</p>';
+      }
+      document.getElementById('modalOverlay').classList.add('open');
+    }
+
+    function closeModal() {
+      document.getElementById('modalOverlay').classList.remove('open');
     }
 
     function resetUI() {
