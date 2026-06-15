@@ -4,12 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>themperV1 - Web Security Scanner</title>
+  <link rel="icon" href="{{ url_for('static', filename='images/image.png') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
   <div class="container">
     <header>
-      <div class="logo"><span>themper</span>V1</div>
+      <img id="logoImg" class="logo-img" src="{{ url_for('static', filename='images/image.png') }}" alt="themperV1">
+      <div class="logo-text"><span>themper</span>V1</div>
       <h1>Web Security Scanner</h1>
       <p class="subtitle">Headers · CORS · CVEs · Secrets · DNS · Grids · Libraries</p>
     </header>
@@ -64,6 +66,7 @@
       document.getElementById('resultActions').classList.add('hidden');
       document.getElementById('statusDot').className = 'dot';
       document.getElementById('statusText').textContent = 'Iniciando...';
+      document.querySelector('.container').classList.add('scanning');
       displayedLineCount = 0;
       scanCompleted = false;
 
@@ -119,6 +122,7 @@
         }
         scanCompleted = true;
         clearInterval(pollTimer);
+        document.querySelector('.container').classList.remove('scanning');
         document.getElementById('statusText').textContent = 'Completado';
         document.getElementById('statusDot').classList.add('done');
       })
@@ -173,6 +177,7 @@
 
         if (data.type === 'done') {
           eventSource.close();
+          document.querySelector('.container').classList.remove('scanning');
           document.getElementById('statusText').textContent = 'Completado';
           document.getElementById('statusDot').classList.add('done');
         }
@@ -305,6 +310,7 @@
       if (eventSource) { eventSource.close(); eventSource = null; }
       if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
       scanCompleted = true;
+      document.querySelector('.container').classList.remove('scanning');
       document.getElementById('inputSection').style.display = 'flex';
       document.getElementById('outputSection').classList.remove('visible');
       document.getElementById('outputBox').innerHTML = '';
