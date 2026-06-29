@@ -253,6 +253,18 @@ h1 {
   content: "✗ ";
 }
 
+.vuln-list li strong {
+  font-weight: 600;
+}
+
+.vuln-list .vuln-desc {
+  display: block;
+  color: #6c7086;
+  font-size: 11px;
+  margin-top: 2px;
+  line-height: 1.4;
+}
+
 .download-btn {
   display: inline-block;
   margin-top: 16px;

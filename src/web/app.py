@@ -12,6 +12,7 @@ from flask import Flask, render_template, request, jsonify, Response, stream_wit
 
 from src.web.scan_runner import ScanRunner
 from src.core.scanner import ThemperV1
+from src.core.descriptions import get_vuln_description
 
 IS_VERCEL = os.environ.get("VERCEL") == "1"
 
@@ -305,10 +306,18 @@ def _run_sync(url, scan_id):
         return result
 
 
+def _vuln_li(v):
+    desc = get_vuln_description(v)
+    li = f'<li class="err">&#10007; <strong>{v}</strong>'
+    if desc:
+        li += f'<br><span style="color:#8b949e;font-size:11px">{desc}</span>'
+    return li + '</li>'
+
+
 def _generate_html(domain, score, vulns):
     score_class = "ok" if score > 70 else "warn" if score > 50 else "err"
     vulns_html = "".join(
-        [f'<li class="err">&#10007; {v}</li>' for v in vulns]
+        [_vuln_li(v) for v in vulns]
     ) if vulns else '<li class="ok">&#10003; Sin problemas detectados</li>'
 
     return f"""<!DOCTYPE html>

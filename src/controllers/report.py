@@ -2,6 +2,7 @@ import json
 import time
 from datetime import datetime
 from src.core.colors import item, C, W
+from src.core.descriptions import get_vuln_description
 
 
 def export_json(domain, score, vulns, start_time):
@@ -20,7 +21,19 @@ def export_json(domain, score, vulns, start_time):
     item(f"JSON exportado: {C}{filename}{W}", "ok")
 
 
+def _vuln_li_html(v):
+    desc = get_vuln_description(v)
+    li = f'<li class="err">✗ <strong>{v}</strong>'
+    if desc:
+        li += f'<br><span style="color:#8b949e;font-size:11px">{desc}</span>'
+    return li + '</li>'
+
+
 def generar_html(domain, score, vulns):
+    vulns_html = "".join(
+        [_vuln_li_html(v) for v in vulns]
+    ) if vulns else '<li class="ok">✓ Sin problemas detectados</li>'
+
     html = f"""<!DOCTYPE html>
 <html><head><title>themperV1 Report - {domain}</title>
 <meta charset="UTF-8">
@@ -35,7 +48,7 @@ ul{{list-style:none;padding:0}}li{{padding:5px 0}}.footer{{margin-top:30px;color
 <p>Fecha: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
 <p class="score {'ok' if score>70 else 'warn' if score>50 else 'err'}">Score: {max(0, score)}/100</p></div>
 <div class="box"><h2>Vulnerabilidades Detectadas: {len(vulns)}</h2>
-<ul>{"".join([f'<li class="err">✗ {v}</li>' for v in vulns]) if vulns else '<li class="ok">✓ Sin problemas detectados</li>'}</ul></div>
+<ul>{vulns_html}</ul></div>
 <div class="footer">Generado por themperV1.3 FULL - SauNuz Team</div>
 </body></html>"""
 

@@ -228,6 +228,50 @@
       box.scrollTop = box.scrollHeight;
     }
 
+    function getVulnDescription(text) {
+      var descriptions = {
+        "Falta X-Frame-Options": "Permite que la página sea cargada en iframes, exponiendo a ataques de clickjacking",
+        "Falta X-Content-Type-Options": "El navegador podría interpretar archivos con tipos MIME incorrectos (content sniffing)",
+        "Falta Strict-Transport-Security": "No obliga a usar HTTPS, permitiendo ataques man-in-the-middle (SSL stripping)",
+        "Falta Content-Security-Policy": "Permite ejecutar scripts no autorizados, facilitando ataques XSS",
+        "Falta Referrer-Policy": "La URL completa puede filtrarse a sitios externos en las cabeceras Referer",
+        "Falta Permissions-Policy": "APIs del navegador (cámara, micrófono, geolocalización) pueden usarse sin restricción",
+        "Cookie sin HttpOnly": "Las cookies pueden ser accedidas por JavaScript, permitiendo robo de sesión via XSS",
+        "Cookie sin Secure": "Las cookies se envían en conexiones HTTP no cifradas, permitiendo su interceptación",
+        "Cookie sin SameSite": "Las cookies se envían en solicitudes cross-site, permitiendo ataques CSRF",
+        "Fuga de info X-Powered-By": "Revela la tecnología y versión del servidor, facilitando ataques dirigidos",
+        "XSS Reflejado": "Permite inyectar scripts maliciosos que se ejecutan en el navegador de la víctima",
+        "CORS preflight permite métodos no estándar": "Permite métodos HTTP peligrosos (PUT, DELETE) desde orígenes externos",
+        "Sin Rate Limiting": "El servidor no limita peticiones, permitiendo ataques de fuerza bruta y DoS",
+        "Rate Limit débil": "La limitación de peticiones es insuficiente para prevenir abusos",
+        "SSL handshake lento": "La negociación SSL/TLS es lenta, posiblemente por configuración subóptima",
+      };
+      if (descriptions[text]) return descriptions[text];
+
+      var prefixes = [
+        ["CORS killer", "Configuración CORS insegura que permite a sitios maliciosos leer datos del servidor"],
+        ["SourceMap expuesto", "Expone el código fuente original del frontend, revelando lógica de negocio y posiblemente secretos"],
+        ["Grid expuesto", "Panel de administración o servicio interno expuesto sin autenticación"],
+        ["Verificar versión", "La versión del framework puede tener vulnerabilidades conocidas (CVEs)"],
+      ];
+      for (var i = 0; i < prefixes.length; i++) {
+        if (text.indexOf(prefixes[i][0]) === 0) return prefixes[i][1];
+      }
+
+      if (text.indexOf(' público') !== -1 && text.length > 3)
+        return "Archivo sensible accesible públicamente, puede exponer credenciales y datos internos";
+      if (text.indexOf(' en JS') !== -1)
+        return "Clave secreta o credencial expuesta en JavaScript del lado del cliente, accesible a cualquier visitante";
+
+      var libs = ["jQuery", "React", "Vue", "Angular", "Bootstrap", "Lodash", "Moment.js", "DOMPurify", "socket.io", "Chart.js"];
+      for (var i = 0; i < libs.length; i++) {
+        if (text.indexOf(libs[i]) === 0)
+          return "Librería con vulnerabilidades conocidas (CVE). Se recomienda actualizar a la última versión";
+      }
+
+      return '';
+    }
+
     function showResults(result) {
       var panel = document.getElementById('resultPanel');
       panel.classList.remove('hidden');
@@ -254,7 +298,12 @@
       html += '<h3>Vulnerabilidades (' + vulns.length + ')</h3>';
       if (vulns.length > 0) {
         html += '<ul>';
-        vulns.forEach(function(v) { html += '<li>' + v + '</li>'; });
+        vulns.forEach(function(v) {
+          var desc = getVulnDescription(v);
+          html += '<li><strong>' + v + '</strong>';
+          if (desc) html += '<br><span class="vuln-desc">' + desc + '</span>';
+          html += '</li>';
+        });
         html += '</ul>';
       } else {
         html += '<p style="color:#a6e3a1;font-size:13px">&#10003; Sin vulnerabilidades detectadas</p>';
@@ -296,7 +345,10 @@
       var vulnsHtml = '';
       if (vulns.length > 0) {
         vulnsHtml = vulns.map(function(v) {
-          return '<li class="err">&#10007; ' + v + '</li>';
+          var desc = getVulnDescription(v);
+          var li = '<li class="err">&#10007; <strong>' + v + '</strong>';
+          if (desc) li += '<br><span style="color:#8b949e;font-size:11px">' + desc + '</span>';
+          return li + '</li>';
         }).join('');
       } else {
         vulnsHtml = '<li class="ok">&#10003; Sin problemas detectados</li>';
